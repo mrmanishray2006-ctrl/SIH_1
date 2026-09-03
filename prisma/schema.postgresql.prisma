@@ -1,0 +1,122 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("customer")
+  phone        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  stores       Store[]
+  orders       Order[]
+  carts        Cart[]
+
+  @@index([email])
+}
+
+model Store {
+  id                      String    @id @default(cuid())
+  ownerId                 String
+  owner                   User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  storeName               String
+  address                 String
+  taxRate                 Float     @default(5.0)
+  upiVpa                  String
+  subscriptionPlan        String    @default("starter")
+  subscriptionStatus      String    @default("active")
+  subscriptionRenewalDate DateTime?
+  lowStockThreshold       Int       @default(5)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  products                Product[]
+  orders                  Order[]
+  subscriptions           Subscription[]
+  carts                   Cart[]
+
+  @@index([ownerId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
+  price       Float
+  sku         String
+  barcode     String?
+  stockQty    Int      @default(0)
+  category    String   @default("General")
+  description String?
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  qrCodeUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, sku])
+  @@index([storeId, isActive])
+  @@index([storeId, category])
+}
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items     String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, storeId])
+}
+
+model Order {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId        String
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  invoiceNumber  String   @unique
+  items          String
+  subtotal       Float
+  taxAmount      Float
+  discount       Float    @default(0.0)
+  total          Float
+  paymentStatus  String   @default("pending")
+  transactionRef String?
+  upiVpa         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([storeId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Subscription {
+  id            String   @id @default(cuid())
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  plan          String   @default("starter")
+  amount        Float
+  status        String   @default("active")
+  startDate     DateTime @default(now())
+  renewalDate   DateTime
+  paymentMethod String   @default("Razorpay UPI")
+  autoRenew     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([storeId])
+}
