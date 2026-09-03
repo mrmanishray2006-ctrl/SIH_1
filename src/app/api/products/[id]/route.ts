@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    const product = await db.product.findUnique({
+    let product = await db.product.findUnique({
       where: { id },
       include: {
         store: {
@@ -24,6 +24,29 @@ export async function GET(
         },
       },
     });
+
+    // Fallback: look up by SKU or Barcode if not found by primary ID
+    if (!product) {
+      product = await db.product.findFirst({
+        where: {
+          OR: [
+            { sku: id },
+            { barcode: id },
+          ],
+        },
+        include: {
+          store: {
+            select: {
+              id: true,
+              storeName: true,
+              address: true,
+              taxRate: true,
+              upiVpa: true,
+            },
+          },
+        },
+      });
+    }
 
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });

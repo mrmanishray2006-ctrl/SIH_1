@@ -35,6 +35,7 @@ export async function GET(req: Request) {
         { name: { contains: search } },
         { sku: { contains: search } },
         { category: { contains: search } },
+        { barcode: { contains: search } },
       ];
     }
 
