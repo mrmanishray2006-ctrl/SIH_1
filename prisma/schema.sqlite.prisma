@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -12,7 +12,7 @@ model User {
   name         String
   email        String    @unique
   passwordHash String
-  role         String    @default("customer")
+  role         String    @default("customer") // 'owner' | 'customer'
   phone        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -20,8 +20,6 @@ model User {
   stores       Store[]
   orders       Order[]
   carts        Cart[]
-
-  @@index([email])
 }
 
 model Store {
@@ -30,10 +28,10 @@ model Store {
   owner                   User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   storeName               String
   address                 String
-  taxRate                 Float     @default(5.0)
-  upiVpa                  String
-  subscriptionPlan        String    @default("starter")
-  subscriptionStatus      String    @default("active")
+  taxRate                 Float     @default(5.0) // Percentage (e.g. 5% GST)
+  upiVpa                  String    // e.g. storeowner@upi
+  subscriptionPlan        String    @default("starter") // 'starter' | 'pro' | 'enterprise'
+  subscriptionStatus      String    @default("active")  // 'active' | 'expired' | 'pending'
   subscriptionRenewalDate DateTime?
   lowStockThreshold       Int       @default(5)
   createdAt               DateTime  @default(now())
@@ -43,8 +41,6 @@ model Store {
   orders                  Order[]
   subscriptions           Subscription[]
   carts                   Cart[]
-
-  @@index([ownerId])
 }
 
 model Product {
@@ -60,13 +56,11 @@ model Product {
   description String?
   imageUrl    String?
   isActive    Boolean  @default(true)
-  qrCodeUrl   String?
+  qrCodeUrl   String?  // Cloudinary URL or high-res base64 data URI
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([storeId, sku])
-  @@index([storeId, isActive])
-  @@index([storeId, category])
 }
 
 model Cart {
@@ -75,7 +69,7 @@ model Cart {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   storeId   String
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  items     String   @default("[]")
+  items     String   @default("[]") // JSON stringified CartItem[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -88,20 +82,17 @@ model Order {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   storeId        String
   store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  invoiceNumber  String   @unique
-  items          String
+  invoiceNumber  String   @unique // INV-{storeId}-{YYYYMMDD}-{sequence}
+  items          String   // JSON stringified OrderItem[]
   subtotal       Float
   taxAmount      Float
   discount       Float    @default(0.0)
   total          Float
-  paymentStatus  String   @default("pending")
-  transactionRef String?
-  upiVpa         String?
+  paymentStatus  String   @default("pending") // 'pending' | 'paid' | 'failed' | 'refunded'
+  transactionRef String?  // Razorpay payment_id
+  upiVpa         String?  // Store's UPI ID at transaction time
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  @@index([storeId, createdAt])
-  @@index([userId, createdAt])
 }
 
 model Subscription {
@@ -110,13 +101,11 @@ model Subscription {
   store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   plan          String   @default("starter")
   amount        Float
-  status        String   @default("active")
+  status        String   @default("active") // 'active' | 'expired' | 'pending'
   startDate     DateTime @default(now())
   renewalDate   DateTime
   paymentMethod String   @default("Razorpay UPI")
   autoRenew     Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
-  @@index([storeId])
 }
